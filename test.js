@@ -19,36 +19,53 @@ async function loadImage(filePath) {
  * @returns {boolean} 
  */
 function validateBadge(image) {
-    if (image.bitmap.width !== BADGE_SIZE || image.bitmap.height !== BADGE_SIZE) {
-        console.log('Le badge n\'est pas à la bonne taille.');
+  if (image.bitmap.width !== BADGE_SIZE || image.bitmap.height !== BADGE_SIZE) {
+    console.log('Le badge n\'est pas à la bonne taille.');
+    return false;
+  }
+
+  // Transparency check.
+  let hasTransparentPixels = false;
+  for (let y = 0; y < BADGE_SIZE; y++) {
+    for (let x = 0; x < BADGE_SIZE; x++) {
+      const pixel = Jimp.intToRGBA(image.getPixelColor(x, y));
+      if (pixel.a === 0) {
+        hasTransparentPixels = true;
+        break;
+      }
+    }
+    if (hasTransparentPixels) {
+      break;
+    }
+  }
+
+  if (!hasTransparentPixels) {
+    console.log('Le badge n\'a pas de fond transparent.');
+    return false;
+  }
+
+  // Check if a pixel is located within a circle.
+  for (let y = 0; y < BADGE_SIZE; y++) {
+    for (let x = 0; x < BADGE_SIZE; x++) {
+      if (isCirclePixel(x, y, BADGE_SIZE) && Jimp.intToRGBA(image.getPixelColor(x, y)).a === 0) {
+        console.log('Le badge contient des pixels transparents dans le cercle.');
         return false;
       }
-    
-      // Transparency check.
-      let hasTransparentPixels = false;
-      for (let y = 0; y < BADGE_SIZE; y++) {
-        for (let x = 0; x < BADGE_SIZE; x++) {
-          const pixel = Jimp.intToRGBA(image.getPixelColor(x, y));
-          if (pixel.a === 0) {
-            hasTransparentPixels = true;
-            break;
-          }
-        }
-        if (hasTransparentPixels) {
-          break;
-        }
-      }
-    
-      if (!hasTransparentPixels) {
-        console.log('Le badge n\'a pas de fond transparent.');
-        return false;
-      }
+    }
+  }
+
+  // Joyful Colors Validation
+  const colors = getColors(image);
+  if (!colors.every(color => JOYFUL_COLORS.includes(color))) {
+    console.log('Le badge ne contient pas les couleurs joyeuses requises.');
+    return false;
+  }
 
   return true;
 }
 
 /**
- * Check if a pixel is located within a circle.
+ * Check if a pixel is located inside a circle.
  * @param {number} x 
  * @param {number} y 
  * @param {number} badgeSize 
@@ -56,10 +73,10 @@ function validateBadge(image) {
  */
 function isCirclePixel(x, y, badgeSize) {
   const radius = badgeSize / 2;
-  let centerX = centerY = radius;
+  const centerX = centerY = radius;
   const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
   const color = image.getPixelColor(x, y);
-  const alpha = Jimp.intToRGBA(color).a;  
+  const alpha = Jimp.intToRGBA(color).a;
   return distance <= radius && alpha !== 0;
 }
 
@@ -97,25 +114,3 @@ async function convertImageToBadge(image) {
  * Main function to execute the script.
  * @returns {Promise<void>}
  */
-async function main() {
-  try {
-
-    const image = await loadImage('test4.png');
-
-
-    const isValid = validateBadge(image);
-    if (isValid) {
-      console.log('Le badge est valide.');
-    } else {
-      console.log('Le badge n\'est pas valide.');
-    }
-
-    const badge = await convertImageToBadge(image);
-
-
-  } catch (erreur) {
-    console.error('Une erreur s\'est produite :', erreur.message);
-  }
-}
-
-main();
